@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Esmiringhoy auction - Online Auction</title>
+<title>Fiducia Auction - Online Auction</title>
 <style>
 :root{--paper:#f2f4f7;--ink:#101828;--mute:#5b6577;--line:#d5dae3;--blue:#2446d8;--amber:#b45309;--green:#1f8a5b;--red:#b42318;--r:6px}
 *{box-sizing:border-box}
@@ -112,8 +112,8 @@ const msgHtml = () => flash ? `<p class="msg ${flashBad ? "bad" : "ok"}" role="s
 
 function authView() {
   const up = tab === "up";
-  return `<header><span class="brand serif">Esmiringhoy Auction</span></header><main>
-  <h1>Welcome to Esmiringhoy Auction</h1><p class="mute">New accounts start with $1,000 to bid with.</p>
+  return `<header><span class="brand serif">Fiducia Auction</span></header><main>
+  <h1>Welcome to Fiducia Auction</h1><p class="mute">New accounts start with $1,000 to bid with.</p>
   <div class="tabs">
     <button class="${up ? "" : "on"}" onclick="tab='login';flash='';render()">Log in</button>
     <button class="${up ? "on" : ""}" onclick="tab='up';flash='';render()">Sign up</button>
@@ -161,7 +161,7 @@ function dashView() {
     <p><button style="margin-top:16px" onclick="addItem()">List item</button></p>
     <h2>Your items</h2>` + (mine.length ? mine.map(i => lot(i, false)).join("") : `<p class="mute">You have not listed anything yet.</p>`);
   }
-  return `<header><span class="brand serif">Esmiringhoy Auction</span><div class="who"><span>${esc(profile.username)}</span><span>Balance: <b>${money(profile.balance)}</b></span>
+  return `<header><span class="brand serif">Fiducia Auction</span><div class="who"><span>${esc(profile.username)}</span><span>Balance: <b>${money(profile.balance)}</b></span>
   <button class="alt" onclick="setMode(null)">Switch role</button><button class="alt" onclick="logout()">Log out</button></div></header><main>${body}</main>`;
 }
 
