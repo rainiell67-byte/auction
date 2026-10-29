@@ -3,37 +3,52 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fiducia Auction - Online Auction</title>
+<title>Fiducia Auction</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
 <style>
-:root{--paper:#f2f4f7;--ink:#101828;--mute:#5b6577;--line:#d5dae3;--blue:#2446d8;--amber:#b45309;--green:#1f8a5b;--red:#b42318;--r:6px}
+:root{--ivory:#f8f4ea;--card:#fffdf8;--ink:#1f1a17;--mute:#70675c;--line:#e4dccb;--gold:#b08d3c;--wine:#7a1f2b;--green:#2f6b4f;--red:#a4262c;--r:8px}
 *{box-sizing:border-box}
-body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 system-ui,"Segoe UI",sans-serif}
-.serif,h1,h2,h3{font-family:"Iowan Old Style",Palatino,Georgia,serif}
-header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 20px;background:var(--ink);color:#fff}
-header .brand{font-size:22px;font-weight:700}
-header .who{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-main{max-width:760px;margin:0 auto;padding:20px}
-h1{font-size:30px;margin:8px 0}h2{font-size:24px;margin:24px 0 4px}h3{font-size:20px;margin:0}
+body{margin:0;background:var(--ivory);color:var(--ink);font:16px/1.55 Inter,system-ui,"Segoe UI",sans-serif}
+.serif,h1,h2,h3,.brand{font-family:"Cormorant Garamond","Iowan Old Style",Palatino,Georgia,serif;font-weight:600}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 24px;background:var(--card);border-bottom:1px solid var(--gold)}
+.brand{font-size:22px;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
+.brand::before{content:"";display:inline-block;width:9px;height:9px;background:var(--gold);transform:rotate(45deg);margin-right:12px}
+.who{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pill{border:1px solid var(--gold);border-radius:999px;padding:4px 14px;font-weight:600}
+main{max-width:780px;margin:0 auto;padding:24px 20px 48px}
+main>*{animation:rise .45s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+@media(prefers-reduced-motion:reduce){main>*{animation:none}}
+h1{font-size:38px;line-height:1.1;margin:12px 0 6px}h2{font-size:28px;margin:32px 0 4px}h3{font-size:24px;margin:0}
 p{margin:4px 0}.mute{color:var(--mute)}
+.hero{text-align:center;padding:40px 0 8px}.hero h1{font-size:54px}
+.authcard{max-width:420px;margin:0 auto}
 input,textarea,button{font:inherit;border-radius:var(--r)}
-input,textarea{width:100%;padding:10px;border:1px solid var(--line);background:#fff;color:var(--ink)}
-label{display:block;margin:12px 0 4px;font-weight:600}
-button{padding:10px 16px;border:0;background:var(--blue);color:#fff;cursor:pointer}
-button.alt{background:transparent;color:inherit;border:1px solid currentColor}
-button.big{display:block;width:100%;padding:22px;text-align:left;margin:12px 0;font-size:18px}
-button.big small{display:block;font-weight:400;opacity:.85}
-:focus-visible{outline:3px solid #f5a524;outline-offset:2px}
-.tabs{display:flex;gap:8px;margin:12px 0}
-.tabs button{flex:1}.tabs button:not(.on){background:transparent;color:var(--ink);border:1px solid var(--line)}
-.lot{display:grid;grid-template-columns:1fr auto;gap:8px 20px;padding:18px 0;border-bottom:1px solid var(--line)}
-.price{text-align:right}.price b{display:block;font-size:32px;line-height:1.1}
-.time{color:var(--amber);font-weight:700}
-.bidrow{grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+input,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+input:focus,textarea:focus{border-color:var(--gold)}
+label{display:block;margin:14px 0 4px;font-weight:600;font-size:14px;letter-spacing:.04em}
+button{padding:11px 18px;border:1px solid var(--wine);background:var(--wine);color:#fff;cursor:pointer;transition:background .2s,transform .2s}
+button:hover{background:#5e1520}
+button.alt{background:transparent;color:var(--ink);border:1px solid var(--ink)}
+button.alt:hover{background:var(--ink);color:#fff}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.tabs{display:flex;gap:8px;margin:16px 0}
+.tabs button{flex:1}.tabs button:not(.on){background:transparent;color:var(--ink);border-color:var(--line)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px;margin:16px 0;box-shadow:0 1px 3px rgba(31,26,23,.06)}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0}
+.big{text-align:left;padding:28px 24px;background:var(--card);color:var(--ink);border:1px solid var(--line);font-size:26px;font-family:"Cormorant Garamond",Georgia,serif;font-weight:700}
+.big:hover{background:var(--card);border-color:var(--gold);transform:translateY(-3px)}
+.big small{display:block;margin-top:6px;font:400 15px/1.5 Inter,system-ui,sans-serif;color:var(--mute)}
+.lot{display:grid;grid-template-columns:1fr auto;gap:10px 24px}
+.lotno{font-size:12px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--gold)}
+.price{text-align:right}.price b{display:block;font-size:40px;line-height:1.05}
+.time{color:var(--green);font-weight:600}.time.urgent{color:var(--red)}
+.bidrow{grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--line)}
 .bidrow input{max-width:200px}
-.msg{padding:10px 14px;border-radius:var(--r);margin:12px 0}
-.ok{background:#e3f4ec;color:#14533a}.bad{background:#fde8e6;color:var(--red)}
-.tag{font-weight:700;color:var(--green)}
-@media(max-width:520px){.lot{grid-template-columns:1fr}.price{text-align:left}}
+.msg{padding:11px 14px;border-radius:var(--r);margin:14px 0}
+.ok{background:#e6f1ea;color:#1f4a37}.bad{background:#fbe9e7;color:var(--red)}
+.tag{font-weight:600;color:var(--green)}
+@media(max-width:560px){.lot,.choices{grid-template-columns:1fr}.price{text-align:left}.hero h1{font-size:40px}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
 </head>
@@ -41,8 +56,8 @@ button.big small{display:block;font-weight:400;opacity:.85}
 <div id="app"></div>
 
 <script>
-// ---------- 1. PASTE YOUR SUPABASE DETAILS HERE ----------
-const SUPABASE_URL = "https://draeogtvyeulzavoutrm.supabase.co";      // example: https://abcdxyz.supabase.co
+// ---------- 1. YOUR SUPABASE DETAILS ----------
+const SUPABASE_URL = "https://draeogtvyeulzavoutrm.supabase.co";
 const SUPABASE_KEY = "sb_publishable_NDIMtZRl4o_sNn1JhZVAGQ_mQQyZoGl";   // never use the service_role key
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -86,6 +101,13 @@ async function auth(kind) {
 async function logout() { await sb.auth.signOut(); user = profile = null; items = []; mode = null; flash = ""; render(); }
 function setMode(m) { mode = m; flash = ""; render(); }
 
+async function addFunds(n) {
+  const amount = Math.floor(Number(n));
+  if (!(amount >= 1)) return say("Enter an amount of $1 or more.", true);
+  const { error } = await sb.rpc("add_balance", { p_amount: amount });
+  if (error) return say(error.message, true);
+  await refresh(); say(money(amount) + " added to your balance.");
+}
 async function placeBid(id) {
   const amount = Math.floor(Number($("a" + id).value));
   if (!(amount >= 1)) return say("Enter how much you want to bid.", true);
@@ -110,10 +132,18 @@ function left(ts) {
 }
 const msgHtml = () => flash ? `<p class="msg ${flashBad ? "bad" : "ok"}" role="status">${esc(flash)}</p>` : "";
 
+const hdr = () => `<header><span class="brand">Fiducia Auction</span><div class="who"><span>${esc(profile.username)}</span><span class="pill">Balance ${money(profile.balance)}</span>
+  <button class="alt" onclick="setMode(null)">Switch role</button><button class="alt" onclick="logout()">Log out</button></div></header>`;
+
+const fundsPanel = () => `<section class="card"><h3>Add balance</h3><p class="mute">This is a demo top-up. No real money is used.</p>
+  <div class="bidrow" style="border:0;padding-top:12px"><button class="alt" onclick="addFunds(100)">+ $100</button><button class="alt" onclick="addFunds(500)">+ $500</button><button class="alt" onclick="addFunds(1000)">+ $1,000</button>
+  <input id="fund" type="number" min="1" aria-label="Custom amount to add" placeholder="Other amount"><button onclick="addFunds($('fund').value)">Add</button></div></section>`;
+
 function authView() {
   const up = tab === "up";
-  return `<header><span class="brand serif">Fiducia Auction</span></header><main>
-  <h1>Welcome to Fiducia Auction</h1><p class="mute">New accounts start with $1,000 to bid with.</p>
+  return `<header><span class="brand">Fiducia Auction</span></header><main>
+  <div class="hero"><h1>Fiducia Auction</h1><p class="mute">Where every bid is made in good faith.</p></div>
+  <div class="authcard card"><p class="mute">New accounts start with $0. After you log in, add balance to start bidding.</p>
   <div class="tabs">
     <button class="${up ? "" : "on"}" onclick="tab='login';flash='';render()">Log in</button>
     <button class="${up ? "on" : ""}" onclick="tab='up';flash='';render()">Sign up</button>
@@ -121,13 +151,14 @@ function authView() {
   ${up ? `<label for="u">Username</label><input id="u">` : ""}
   <label for="e">Email</label><input id="e" type="email" autocomplete="email">
   <label for="p">Password</label><input id="p" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')auth('${tab}')">
-  <p><button style="margin-top:16px" onclick="auth('${tab}')">${up ? "Create account" : "Log in"}</button></p></main>`;
+  <p><button style="margin-top:18px;width:100%" onclick="auth('${tab}')">${up ? "Create account" : "Log in"}</button></p></div></main>`;
 }
 
 function chooseView() {
-  return `<main><h1>What do you want to do, ${esc(profile.username)}?</h1>
-  <button class="big" onclick="setMode('bid')">Bid on items<small>Scroll through the lots and bid with your balance.</small></button>
-  <button class="big" onclick="setMode('sell')">Give an item for auction<small>Set a title, a starting bid, and how long the auction runs.</small></button></main>`;
+  return `${hdr()}<main><h1>Welcome, ${esc(profile.username)}</h1><p class="mute">What would you like to do today?</p>${msgHtml()}
+  <div class="choices">
+  <button class="big" onclick="setMode('bid')">Bid on items<small>Browse the lots and bid with your balance.</small></button>
+  <button class="big" onclick="setMode('sell')">Auction an item<small>Set a title, a starting bid, and how long it runs.</small></button></div>${fundsPanel()}</main>`;
 }
 
 function lot(i, controls) {
@@ -137,10 +168,11 @@ function lot(i, controls) {
     c = mine ? `<p class="bidrow mute">This is your item.</p>`
       : `<div class="bidrow"><input id="a${i.id}" type="number" min="1" aria-label="Amount to bid on lot ${i.id}" placeholder="Amount to use" onkeydown="if(event.key==='Enter')placeBid(${i.id})"><button onclick="placeBid(${i.id})">Place bid</button>${lead ? `<span class="tag">You are the highest bidder</span>` : ""}</div>`;
   }
+  const urgent = new Date(i.ends_at) - Date.now() < 60000 ? " urgent" : "";
   const status = done
     ? (i.bidder ? `Sold to ${esc(i.bidder_name)}${lead ? " (you won this lot)" : ""}` : "Ended with no bids")
-    : `<span class="time" data-end="${esc(i.ends_at)}">${left(i.ends_at)}</span>`;
-  return `<article class="lot"><div><h3>Lot ${i.id}: ${esc(i.title)}</h3><p>${esc(i.description)}</p><p class="mute">Seller: ${esc(i.seller_name)}</p></div>
+    : `<span class="time${urgent}" data-end="${esc(i.ends_at)}">${left(i.ends_at)}</span>`;
+  return `<article class="card lot"><div><span class="lotno">Lot ${i.id}</span><h3>${esc(i.title)}</h3><p>${esc(i.description)}</p><p class="mute">Seller: ${esc(i.seller_name)}</p></div>
   <div class="price"><span class="mute">${i.bidder ? (done ? "Final bid" : "Current bid") : "Starting bid"}</span><b class="serif">${money(i.bidder ? i.current_bid : i.start_bid)}</b><span>${status}</span></div>${c}</article>`;
 }
 
@@ -149,20 +181,20 @@ function dashView() {
   if (mode === "bid") {
     const open = items.filter(i => !isDone(i)), shut = items.filter(i => isDone(i) && (i.seller === user.id || i.bidder === user.id));
     body = `<h1>Open lots</h1><p class="mute">Enter how much of your balance to use, then place your bid.</p>${msgHtml()}`
+      + (profile.balance < 1 ? `<p class="msg bad">Your balance is $0. Add balance below before bidding.</p>` : "") + fundsPanel()
       + (open.length ? open.map(i => lot(i, true)).join("") : `<p>No auctions are open right now. Switch role to list the first item.</p>`)
       + (shut.length ? `<h2>Your results</h2>` + shut.map(i => lot(i, false)).join("") : "");
   } else {
     const mine = items.filter(i => i.seller === user.id);
-    body = `<h1>Give an item for auction</h1>${msgHtml()}
+    body = `<h1>Auction an item</h1>${msgHtml()}<section class="card">
     <label for="t">Item title</label><input id="t" maxlength="60">
     <label for="d">Description</label><textarea id="d" rows="3" maxlength="200"></textarea>
     <label for="s">Starting bid ($)</label><input id="s" type="number" min="1">
     <label for="m">Auction length (minutes)</label><input id="m" type="number" min="1" value="10">
-    <p><button style="margin-top:16px" onclick="addItem()">List item</button></p>
+    <p><button style="margin-top:18px" onclick="addItem()">List item</button></p></section>
     <h2>Your items</h2>` + (mine.length ? mine.map(i => lot(i, false)).join("") : `<p class="mute">You have not listed anything yet.</p>`);
   }
-  return `<header><span class="brand serif">Fiducia Auction</span><div class="who"><span>${esc(profile.username)}</span><span>Balance: <b>${money(profile.balance)}</b></span>
-  <button class="alt" onclick="setMode(null)">Switch role</button><button class="alt" onclick="logout()">Log out</button></div></header><main>${body}</main>`;
+  return `${hdr()}<main>${body}</main>`;
 }
 
 function render() {
@@ -179,7 +211,10 @@ function render() {
 let ticks = 0;
 setInterval(() => {
   ticks++;
-  document.querySelectorAll("[data-end]").forEach(e => e.textContent = left(e.dataset.end));
+  document.querySelectorAll("[data-end]").forEach(e => {
+    e.textContent = left(e.dataset.end);
+    e.classList.toggle("urgent", new Date(e.dataset.end) - Date.now() < 60000);
+  });
   const ended = items.some(i => !i.settled && new Date(i.ends_at) <= new Date());
   const typing = document.activeElement && ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName);
   if (user && (ended || ticks % 5 === 0) && !typing) refresh();
