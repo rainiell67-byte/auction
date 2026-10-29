@@ -47,7 +47,8 @@ button.alt:hover{background:var(--ink);color:#fff}
 .bidrow input{max-width:200px}
 .msg{padding:11px 14px;border-radius:var(--r);margin:14px 0}
 .ok{background:#e6f1ea;color:#1f4a37}.bad{background:#fbe9e7;color:var(--red)}
-.tag{font-weight:600;color:var(--green)}
+.tag{font-weight:600;color:var(--green)}.tag.out{color:var(--red)}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px}.nav button{padding:8px 14px;font-size:15px}.nav button:not(.on){background:transparent;color:var(--ink);border-color:var(--line)}.nav button:not(.on):hover{border-color:var(--gold)}
 @media(max-width:560px){.lot,.choices{grid-template-columns:1fr}.price{text-align:left}.hero h1{font-size:40px}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
@@ -63,7 +64,7 @@ const SUPABASE_KEY = "sb_publishable_NDIMtZRl4o_sNn1JhZVAGQ_mQQyZoGl";   // neve
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ---------- STATE ----------
-let user = null, profile = null, items = [], mode = null, tab = "login", flash = "", flashBad = false;
+let user = null, profile = null, items = [], myBids = new Set(), mode = null, tab = "login", flash = "", flashBad = false;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const money = n => "$" + Number(n).toLocaleString();
@@ -77,6 +78,8 @@ async function refresh() {
   await sb.rpc("settle_items");                         // end finished auctions
   const p = await sb.from("profiles").select("*").eq("id", user.id).single();
   const it = await sb.from("items").select("*").order("id", { ascending: false });
+  const b = await sb.from("bids").select("item_id").eq("bidder", user.id);
+  if (b.data) myBids = new Set(b.data.map(x => x.item_id));
   if (p.data) profile = p.data;
   if (it.data) items = it.data;
   render();
@@ -166,7 +169,7 @@ function lot(i, controls) {
   let c = "";
   if (controls && !done) {
     c = mine ? `<p class="bidrow mute">This is your item.</p>`
-      : `<div class="bidrow"><input id="a${i.id}" type="number" min="1" aria-label="Amount to bid on lot ${i.id}" placeholder="Amount to use" onkeydown="if(event.key==='Enter')placeBid(${i.id})"><button onclick="placeBid(${i.id})">Place bid</button>${lead ? `<span class="tag">You are the highest bidder</span>` : ""}</div>`;
+      : `<div class="bidrow"><input id="a${i.id}" type="number" min="1" aria-label="Amount to bid on lot ${i.id}" placeholder="Amount to use" onkeydown="if(event.key==='Enter')placeBid(${i.id})"><button onclick="placeBid(${i.id})">Place bid</button>${lead ? `<span class="tag">You are the highest bidder</span>` : myBids.has(i.id) ? `<span class="tag out">You were outbid</span>` : ""}</div>`;
   }
   const urgent = new Date(i.ends_at) - Date.now() < 60000 ? " urgent" : "";
   const status = done
@@ -176,25 +179,41 @@ function lot(i, controls) {
   <div class="price"><span class="mute">${i.bidder ? (done ? "Final bid" : "Current bid") : "Starting bid"}</span><b class="serif">${money(i.bidder ? i.current_bid : i.start_bid)}</b><span>${status}</span></div>${c}</article>`;
 }
 
+function groups() {
+  const me = user.id, bid = i => myBids.has(i.id);
+  return {
+    bid: items.filter(i => !isDone(i)),
+    mine: items.filter(i => i.seller === me),
+    bidding: items.filter(i => !isDone(i) && bid(i)),
+    won: items.filter(i => isDone(i) && i.bidder === me),
+    lost: items.filter(i => isDone(i) && bid(i) && i.bidder !== me)
+  };
+}
+const NAV = [["bid", "Browse lots"], ["sell", "Auction an item"], ["mine", "My items"], ["bidding", "My bids"], ["won", "Won"], ["lost", "Lost"]];
+const nav = g => `<nav class="nav" aria-label="Sections">${NAV.map(([k, l]) =>
+  `<button class="${mode === k ? "on" : ""}" onclick="setMode('${k}')">${l}${g[k] && k !== "bid" ? " (" + g[k].length + ")" : ""}</button>`).join("")}</nav>`;
+
 function dashView() {
-  let body = "";
+  const g = groups();
+  const titles = { mine: "My items", bidding: "Items I am bidding on", won: "Auctions I won", lost: "Auctions I lost" };
+  const none = { mine: "You have not listed anything yet.", bidding: "You have no active bids.", won: "You have not won any auctions yet.", lost: "You have not lost any auctions." };
+  let body;
   if (mode === "bid") {
-    const open = items.filter(i => !isDone(i)), shut = items.filter(i => isDone(i) && (i.seller === user.id || i.bidder === user.id));
     body = `<h1>Open lots</h1><p class="mute">Enter how much of your balance to use, then place your bid.</p>${msgHtml()}`
       + (profile.balance < 1 ? `<p class="msg bad">Your balance is $0. Add balance below before bidding.</p>` : "") + fundsPanel()
-      + (open.length ? open.map(i => lot(i, true)).join("") : `<p>No auctions are open right now. Switch role to list the first item.</p>`)
-      + (shut.length ? `<h2>Your results</h2>` + shut.map(i => lot(i, false)).join("") : "");
-  } else {
-    const mine = items.filter(i => i.seller === user.id);
+      + (g.bid.length ? g.bid.map(i => lot(i, true)).join("") : `<p>No auctions are open right now.</p>`);
+  } else if (mode === "sell") {
     body = `<h1>Auction an item</h1>${msgHtml()}<section class="card">
     <label for="t">Item title</label><input id="t" maxlength="60">
     <label for="d">Description</label><textarea id="d" rows="3" maxlength="200"></textarea>
     <label for="s">Starting bid ($)</label><input id="s" type="number" min="1">
     <label for="m">Auction length (minutes)</label><input id="m" type="number" min="1" value="10">
-    <p><button style="margin-top:18px" onclick="addItem()">List item</button></p></section>
-    <h2>Your items</h2>` + (mine.length ? mine.map(i => lot(i, false)).join("") : `<p class="mute">You have not listed anything yet.</p>`);
+    <p><button style="margin-top:18px" onclick="addItem()">List item</button></p></section>`;
+  } else {
+    body = `<h1>${titles[mode]}</h1>${msgHtml()}`
+      + (g[mode].length ? g[mode].map(i => lot(i, mode === "bidding")).join("") : `<p class="mute">${none[mode]}</p>`);
   }
-  return `${hdr()}<main>${body}</main>`;
+  return `${hdr()}<main>${nav(g)}${body}</main>`;
 }
 
 function render() {
