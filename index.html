@@ -110,6 +110,12 @@ select:focus{border-color:var(--gold)}
 body.busy{cursor:progress}body.busy button{opacity:.6;pointer-events:none}
 .link{background:none;border:0;box-shadow:none;color:var(--gold2);text-decoration:underline;padding:4px;font-weight:400}
 .link:hover{background:none;box-shadow:none;color:#fff}
+
+.lotrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.badge{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:2px 10px;border-radius:999px;border:1px solid}
+.badge.live{color:var(--green);border-color:#2c4a3a}.badge.end{color:var(--gold2);border-color:var(--gold)}.badge.off{color:var(--red);border-color:#5a2a26}
+.cancelled{opacity:.7}.cancelled .pic{filter:grayscale(1)}
+.cancelled h3{text-decoration:line-through;text-decoration-color:rgba(255,138,128,.6)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
 </head>
@@ -131,7 +137,8 @@ let q = "", sort = "ending", txs = [], form = { t: "", d: "", s: "", m: "10" };
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const money = n => "$" + Number(n).toLocaleString();
-const isDone = i => i.settled || new Date(i.ends_at) <= new Date();
+const isDone = i => i.settled || i.cancelled || new Date(i.ends_at) <= new Date();
+const rank = i => i.cancelled ? 2 : isDone(i) ? 1 : 0;   // My items order: live, ended, cancelled
 
 function say(msg, bad) { flash = msg; flashBad = !!bad; render(); }
 
@@ -341,11 +348,12 @@ function lot(i, controls) {
   }
   if (mine && !done && !i.bidder && mode === "mine")
     c = `<div class="bidrow"><span class="minbid">No bids yet, so you can still cancel this listing.</span><button type="button" class="alt" onclick="cancelItem(${i.id})">Cancel listing</button></div>`;
+  const badge = i.cancelled ? `<span class="badge off">Cancelled</span>` : done ? `<span class="badge end">Item ended</span>` : mode === "mine" ? `<span class="badge live">Live</span>` : "";
   const urgent = new Date(i.ends_at) - Date.now() < 60000 ? " urgent" : "";
-  const status = done
+  const status = i.cancelled ? "Cancelled by the seller" : done
     ? (i.bidder ? `Sold to ${esc(i.bidder_name)}${lead ? " (you won this lot)" : ""}` : "Ended with no bids")
     : `<span class="time${urgent}" data-end="${esc(i.ends_at)}">${left(i.ends_at)}</span>`;
-  return `<article class="card lot"><div class="lotl">${i.image_url ? `<img class="pic" src="${esc(i.image_url)}" alt="" onerror="this.remove()">` : ""}<div><span class="lotno">Lot ${i.id}</span><h3>${esc(i.title)}</h3><p>${esc(i.description)}</p><p class="mute">Seller: ${esc(i.seller_name)}</p></div></div>
+  return `<article class="card lot${i.cancelled ? " cancelled" : ""}"><div class="lotl">${i.image_url ? `<img class="pic" src="${esc(i.image_url)}" alt="" onerror="this.remove()">` : ""}<div><div class="lotrow"><span class="lotno">Lot ${i.id}</span>${badge}</div><h3>${esc(i.title)}</h3><p>${esc(i.description)}</p><p class="mute">Seller: ${esc(i.seller_name)}</p></div></div>
   <div class="price"><span class="mute">${i.bidder ? (done ? "Final bid" : "Current bid") : "Starting bid"}</span><b class="serif">${money(i.bidder ? i.current_bid : i.start_bid)}</b><span>${status}</span></div>${c}</article>`;
 }
 
@@ -353,7 +361,7 @@ function groups() {
   const me = user.id, bid = i => myBids.has(i.id);
   return {
     bid: items.filter(i => !isDone(i)),
-    mine: items.filter(i => i.seller === me),
+    mine: items.filter(i => i.seller === me).sort((a, b) => rank(a) - rank(b) || b.id - a.id),
     bidding: items.filter(i => !isDone(i) && bid(i)),
     won: items.filter(i => isDone(i) && i.bidder === me),
     lost: items.filter(i => isDone(i) && bid(i) && i.bidder !== me)
