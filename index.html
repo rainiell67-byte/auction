@@ -96,6 +96,16 @@ main.shell h1::after{content:"";display:block;width:48px;height:1px;background:v
 input[type=file]{padding:10px;border-style:dashed;color:var(--mute)}
 input[type=file]::file-selector-button{margin-right:12px;padding:8px 14px;border:1px solid var(--gold);background:transparent;color:var(--gold2);border-radius:var(--r);cursor:pointer;font:inherit}
 .empty{padding:48px 20px;text-align:center;border:1px dashed #4a3a22;border-radius:var(--r);color:var(--mute);font:500 22px "Cormorant Garamond",Georgia,serif}
+
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}.toolbar input{flex:1;min-width:180px}
+select{padding:11px 12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:var(--r);font:inherit}
+select:focus{border-color:var(--gold)}
+.chip{padding:6px 12px;font-size:13px}
+.minbid{color:var(--mute);font-size:14px}
+.tx{width:100%;border-collapse:collapse;min-width:480px}
+.tx th{text-align:left;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold2);padding:10px 12px;border-bottom:1px solid var(--line)}
+.tx td{padding:12px;border-bottom:1px solid #2a2218}
+.tx .r{text-align:right;font-variant-numeric:lining-nums;white-space:nowrap}.pos{color:var(--green)}.neg{color:var(--red)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
 </head>
@@ -112,6 +122,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ---------- STATE ----------
 let user = null, profile = null, items = [], myBids = new Set(), mode = null, tab = "login", flash = "", flashBad = false;
 let draft = { u: "", e: "" };
+let q = "", sort = "ending", txs = [], form = { t: "", d: "", s: "", m: "10" };
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const money = n => "$" + Number(n).toLocaleString();
@@ -127,6 +138,8 @@ async function refresh() {
   const it = await sb.from("items").select("*").order("id", { ascending: false });
   const b = await sb.from("bids").select("item_id").eq("bidder", user.id);
   if (b.data) myBids = new Set(b.data.map(x => x.item_id));
+  const tx = await sb.from("transactions").select("*").order("id", { ascending: false }).limit(100);
+  if (tx.data) txs = tx.data;
   if (p.data) profile = p.data;
   if (it.data) items = it.data;
   render();
@@ -166,6 +179,19 @@ async function placeBid(id) {
   if (error) { await refresh(); return say(error.message, true); }
   await refresh(); say("Bid placed: " + money(amount) + ".");
 }
+const cur = i => i.bidder ? i.current_bid : i.start_bid;
+function quick(id, v) { const el = $("a" + id); el.value = v; el.focus(); }
+function lotsHtml() {
+  const w = q.trim().toLowerCase();
+  const a = groups().bid.filter(i => !w || (i.title + " " + (i.description || "") + " " + i.seller_name).toLowerCase().includes(w));
+  const by = { ending: (x, y) => new Date(x.ends_at) - new Date(y.ends_at), high: (x, y) => cur(y) - cur(x), low: (x, y) => cur(x) - cur(y), newest: (x, y) => y.id - x.id };
+  a.sort(by[sort]);
+  return a.length ? a.map(i => lot(i, true)).join("") : `<div class="empty">${w ? "No lots match your search." : "No auctions are open right now."}</div>`;
+}
+function paintLots() { $("lots").innerHTML = lotsHtml(); }
+const toolbar = () => `<div class="toolbar"><input id="q" type="search" aria-label="Search lots" placeholder="Search lots" value="${esc(q)}" oninput="q=this.value;paintLots()">
+  <select id="sort" aria-label="Sort lots" onchange="sort=this.value;paintLots()">${[["ending", "Ending soon"], ["high", "Highest bid"], ["low", "Lowest bid"], ["newest", "Newest"]].map(([k, l]) => `<option value="${k}"${sort === k ? " selected" : ""}>${l}</option>`).join("")}</select></div>`;
+
 // Makes a big phone photo smaller (max 1000px) so it uploads fast
 function shrink(file) {
   return new Promise((ok, no) => {
@@ -186,6 +212,7 @@ function preview(input) {
   if (f) { p.src = URL.createObjectURL(f); p.hidden = false; } else p.hidden = true;
 }
 async function addItem() {
+  form = { t: $("t").value, d: $("d").value, s: $("s").value, m: $("m").value };
   const f = $("img").files[0];
   let img = "";
   if (f) {
@@ -202,6 +229,7 @@ async function addItem() {
     p_start: Math.floor(Number($("s").value)), p_minutes: Number($("m").value), p_image: img
   });
   if (error) return say(error.message, true);
+  form = { t: "", d: "", s: "", m: "10" };
   await refresh(); say("Your item is now up for auction.");
 }
 
@@ -252,10 +280,11 @@ function chooseView() {
 
 function lot(i, controls) {
   const mine = i.seller === user.id, lead = i.bidder === user.id, done = isDone(i);
+  const base = cur(i), min = i.bidder ? i.current_bid + 1 : i.start_bid;
   let c = "";
   if (controls && !done) {
     c = mine ? `<p class="bidrow mute">This is your item.</p>`
-      : `<div class="bidrow"><input id="a${i.id}" type="number" min="1" aria-label="Amount to bid on lot ${i.id}" placeholder="Amount to use" onkeydown="if(event.key==='Enter')placeBid(${i.id})"><button onclick="placeBid(${i.id})">Place bid</button>${lead ? `<span class="tag">You are the highest bidder</span>` : myBids.has(i.id) ? `<span class="tag out">You were outbid</span>` : ""}</div>`;
+      : `<div class="bidrow"><span class="minbid" style="flex-basis:100%">Minimum next bid: ${money(min)}</span><input id="a${i.id}" type="number" min="1" aria-label="Amount to bid on lot ${i.id}" placeholder="Amount to use" onkeydown="if(event.key==='Enter')placeBid(${i.id})">${[10, 50, 100].map(n => `<button type="button" class="alt chip" onclick="quick(${i.id},${base + n})">+$${n}</button>`).join("")}<button onclick="placeBid(${i.id})">Place bid</button>${lead ? `<span class="tag">You are the highest bidder</span>` : myBids.has(i.id) ? `<span class="tag out">You were outbid</span>` : ""}</div>`;
   }
   const urgent = new Date(i.ends_at) - Date.now() < 60000 ? " urgent" : "";
   const status = done
@@ -275,7 +304,7 @@ function groups() {
     lost: items.filter(i => isDone(i) && bid(i) && i.bidder !== me)
   };
 }
-const NAV = [["bid", "Browse lots"], ["sell", "Auction an item"], ["mine", "My items"], ["bidding", "My bids"], ["won", "Won"], ["lost", "Lost"]];
+const NAV = [["bid", "Browse lots"], ["sell", "Auction an item"], ["mine", "My items"], ["bidding", "My bids"], ["won", "Won"], ["lost", "Lost"], ["history", "History"]];
 const nav = g => `<nav class="side" aria-label="Sections"><b>My account</b>${NAV.map(([k, l]) =>
   `<button class="${mode === k ? "on" : ""}" onclick="setMode('${k}')">${l}${g[k] && k !== "bid" ? " (" + g[k].length + ")" : ""}</button>`).join("")}</nav>`;
 
@@ -287,15 +316,20 @@ function dashView() {
   if (mode === "bid") {
     body = `<h1>Open lots</h1><p class="mute">Enter how much of your balance to use, then place your bid.</p>${msgHtml()}`
       + (profile.balance < 1 ? `<p class="msg bad">Your balance is $0. Add balance below before bidding.</p>` : "") + fundsPanel()
-      + (g.bid.length ? g.bid.map(i => lot(i, true)).join("") : `<div class="empty">No auctions are open right now.</div>`);
+      + toolbar() + `<div id="lots">${lotsHtml()}</div>`;
   } else if (mode === "sell") {
     body = `<h1>Auction an item</h1>${msgHtml()}<section class="card">
-    <label for="t">Item title</label><input id="t" maxlength="60">
-    <label for="d">Description</label><textarea id="d" rows="3" maxlength="200"></textarea>
-    <label for="s">Starting bid ($)</label><input id="s" type="number" min="1">
-    <label for="m">Auction length (minutes)</label><input id="m" type="number" min="1" value="10">
+    <label for="t">Item title</label><input id="t" maxlength="60" value="${esc(form.t)}">
+    <label for="d">Description</label><textarea id="d" rows="3" maxlength="200">${esc(form.d)}</textarea>
+    <label for="s">Starting bid ($)</label><input id="s" type="number" min="1" value="${esc(form.s)}">
+    <label for="m">Auction length (minutes)</label><input id="m" type="number" min="1" value="${esc(form.m)}">
     <label for="img">Photo (optional)</label><input id="img" type="file" accept="image/*" onchange="preview(this)"><img id="prev" class="pic" alt="Photo preview" hidden>
     <p><button style="margin-top:18px" onclick="addItem()">List item</button></p></section>`;
+  } else if (mode === "history") {
+    body = `<h1>Transaction history</h1>${msgHtml()}` + (txs.length
+      ? `<div class="card" style="overflow-x:auto"><table class="tx"><thead><tr><th>Date</th><th>Type</th><th>Details</th><th class="r">Amount</th></tr></thead><tbody>${txs.map(t =>
+        `<tr><td>${esc(new Date(t.created_at).toLocaleString())}</td><td>${esc(t.kind)}</td><td>${esc(t.note)}</td><td class="r ${t.amount < 0 ? "neg" : "pos"}">${t.amount < 0 ? "-" : "+"}${money(Math.abs(t.amount))}</td></tr>`).join("")}</tbody></table></div>`
+      : `<div class="empty">No transactions yet.</div>`);
   } else {
     body = `<h1>${titles[mode]}</h1>${msgHtml()}`
       + (g[mode].length ? g[mode].map(i => lot(i, mode === "bidding")).join("") : `<div class="empty">${none[mode]}</div>`);
