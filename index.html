@@ -106,6 +106,10 @@ select:focus{border-color:var(--gold)}
 .tx th{text-align:left;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold2);padding:10px 12px;border-bottom:1px solid var(--line)}
 .tx td{padding:12px;border-bottom:1px solid #2a2218}
 .tx .r{text-align:right;font-variant-numeric:lining-nums;white-space:nowrap}.pos{color:var(--green)}.neg{color:var(--red)}
+
+body.busy{cursor:progress}body.busy button{opacity:.6;pointer-events:none}
+.link{background:none;border:0;box-shadow:none;color:var(--gold2);text-decoration:underline;padding:4px;font-weight:400}
+.link:hover{background:none;box-shadow:none;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
 </head>
@@ -122,6 +126,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ---------- STATE ----------
 let user = null, profile = null, items = [], myBids = new Set(), mode = null, tab = "login", flash = "", flashBad = false;
 let draft = { u: "", e: "" };
+let recovering = location.hash.includes("type=recovery");   // true when opened from a password-reset email
 let q = "", sort = "ending", txs = [], form = { t: "", d: "", s: "", m: "10" };
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -146,7 +151,7 @@ async function refresh() {
 }
 
 // ---------- ACTIONS ----------
-async function auth(kind) {
+async function _auth(kind) {
   const email = $("e").value.trim(), pass = $("p").value;
   draft = { u: $("u") ? $("u").value : "", e: email };
   if (!email || pass.length < 6) return say("Enter your email and a password of 6+ characters.", true);
@@ -165,20 +170,54 @@ async function auth(kind) {
 async function logout() { await sb.auth.signOut(); user = profile = null; items = []; mode = null; flash = ""; render(); }
 function setMode(m) { mode = m; flash = ""; render(); }
 
-async function addFunds(n) {
+async function _addFunds(n) {
   const amount = Math.floor(Number(n));
   if (!(amount >= 1)) return say("Enter an amount of $1 or more.", true);
   const { error } = await sb.rpc("add_balance", { p_amount: amount });
   if (error) return say(error.message, true);
   await refresh(); say(money(amount) + " added to your balance.");
 }
-async function placeBid(id) {
+async function _placeBid(id) {
   const amount = Math.floor(Number($("a" + id).value));
   if (!(amount >= 1)) return say("Enter how much you want to bid.", true);
   const { error } = await sb.rpc("place_bid", { p_item: id, p_amount: amount });
   if (error) { await refresh(); return say(error.message, true); }
   await refresh(); say("Bid placed: " + money(amount) + ".");
 }
+// Double-click protection: while one action is running, other clicks are ignored
+let busy = false;
+const once = fn => async (...a) => {
+  if (busy) return;
+  busy = true; document.body.classList.add("busy");
+  try { await fn(...a); } finally { busy = false; document.body.classList.remove("busy"); }
+};
+
+async function _cancelItem(id) {
+  if (!confirm("Cancel this listing? This cannot be undone.")) return;
+  const { error } = await sb.rpc("cancel_item", { p_item: id });
+  if (error) { await refresh(); return say(error.message, true); }
+  await refresh(); say("Your listing was cancelled.");
+}
+async function _sendReset() {
+  const email = $("e").value.trim(); draft.e = email;
+  if (!email) return say("Enter your email first.", true);
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  if (error) return say(error.message, true);
+  say("If that email has an account, a reset link is on its way. Check your inbox and spam folder.");
+}
+async function _setNewPassword() {
+  const pass = $("p").value;
+  if (pass.length < 6) return say("Use a password of 6+ characters.", true);
+  const { error } = await sb.auth.updateUser({ password: pass });
+  if (error) return say(error.message, true);
+  recovering = false; history.replaceState(null, "", location.pathname);
+  const { data } = await sb.auth.getSession();
+  user = data.session ? data.session.user : null; mode = null; flash = "";
+  if (user) { await refresh(); say("Your password was changed."); } else render();
+}
+const auth = once(_auth), placeBid = once(_placeBid), addFunds = once(_addFunds), addItem = once(_addItem),
+      cancelItem = once(_cancelItem), sendReset = once(_sendReset), setNewPassword = once(_setNewPassword);
+
 const cur = i => i.bidder ? i.current_bid : i.start_bid;
 function quick(id, v) { const el = $("a" + id); el.value = v; el.focus(); }
 function lotsHtml() {
@@ -211,7 +250,7 @@ function preview(input) {
   const p = $("prev"), f = input.files[0];
   if (f) { p.src = URL.createObjectURL(f); p.hidden = false; } else p.hidden = true;
 }
-async function addItem() {
+async function _addItem() {
   form = { t: $("t").value, d: $("d").value, s: $("s").value, m: $("m").value };
   const f = $("img").files[0];
   let img = "";
@@ -256,7 +295,21 @@ const fundsPanel = () => `<section class="card"><h3>Add balance</h3><p class="mu
   <div class="bidrow" style="border:0;padding-top:12px"><button class="alt" onclick="addFunds(100)">+ $100</button><button class="alt" onclick="addFunds(500)">+ $500</button><button class="alt" onclick="addFunds(1000)">+ $1,000</button>
   <input id="fund" type="number" min="1" aria-label="Custom amount to add" placeholder="Other amount"><button onclick="addFunds($('fund').value)">Add</button></div></section>`;
 
+const forgotView = () => `<header><span class="brand">Fiducia Auction</span></header><main class="auth">
+  <div class="hero"><h1>Reset password</h1><p class="mute">We will email you a link to choose a new one</p></div>
+  <div class="authcard card">${msgHtml()}
+  <label for="e">Email</label><input id="e" type="email" autocomplete="email" value="${esc(draft.e)}" onkeydown="if(event.key==='Enter')sendReset()">
+  <p><button style="margin-top:18px;width:100%" onclick="sendReset()">Send reset link</button></p>
+  <p style="text-align:center;margin-top:14px"><button type="button" class="link" onclick="tab='login';flash='';render()">Back to log in</button></p></div></main>`;
+
+const resetView = () => `<header><span class="brand">Fiducia Auction</span></header><main class="auth">
+  <div class="hero"><h1>New password</h1><p class="mute">Choose a new password for your account</p></div>
+  <div class="authcard card">${msgHtml()}
+  <label for="p">New password</label><div class="pw"><input id="p" type="password" autocomplete="new-password" onkeydown="if(event.key==='Enter')setNewPassword()"><button type="button" id="pwb" class="eye" aria-pressed="false" aria-label="Show password" onclick="togglePw()">Show</button></div>
+  <p><button style="margin-top:18px;width:100%" onclick="setNewPassword()">Save new password</button></p></div></main>`;
+
 function authView() {
+  if (tab === "forgot") return forgotView();
   const up = tab === "up";
   return `<header><span class="brand">Fiducia Auction</span></header><main class="auth">
   <div class="hero"><h1>Fiducia Auction</h1><p class="mute">Where every bid is made in good faith.</p></div>
@@ -268,7 +321,7 @@ function authView() {
   ${up ? `<label for="u">Username</label><input id="u" value="${esc(draft.u)}">` : ""}
   <label for="e">Email</label><input id="e" type="email" autocomplete="email" value="${esc(draft.e)}">
   <label for="p">Password</label><div class="pw"><input id="p" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')auth('${tab}')"><button type="button" id="pwb" class="eye" aria-pressed="false" aria-label="Show password" onclick="togglePw()">Show</button></div>
-  <p><button style="margin-top:18px;width:100%" onclick="auth('${tab}')">${up ? "Create account" : "Log in"}</button></p></div></main>`;
+  <p><button style="margin-top:18px;width:100%" onclick="auth('${tab}')">${up ? "Create account" : "Log in"}</button></p>${up ? "" : `<p style="text-align:center;margin-top:14px"><button type="button" class="link" onclick="tab='forgot';flash='';render()">Forgot your password?</button></p>`}</div></main>`;
 }
 
 function chooseView() {
@@ -286,6 +339,8 @@ function lot(i, controls) {
     c = mine ? `<p class="bidrow mute">This is your item.</p>`
       : `<div class="bidrow"><span class="minbid" style="flex-basis:100%">Minimum next bid: ${money(min)}</span><input id="a${i.id}" type="number" min="1" aria-label="Amount to bid on lot ${i.id}" placeholder="Amount to use" onkeydown="if(event.key==='Enter')placeBid(${i.id})">${[10, 50, 100].map(n => `<button type="button" class="alt chip" onclick="quick(${i.id},${base + n})">+$${n}</button>`).join("")}<button onclick="placeBid(${i.id})">Place bid</button>${lead ? `<span class="tag">You are the highest bidder</span>` : myBids.has(i.id) ? `<span class="tag out">You were outbid</span>` : ""}</div>`;
   }
+  if (mine && !done && !i.bidder && mode === "mine")
+    c = `<div class="bidrow"><span class="minbid">No bids yet, so you can still cancel this listing.</span><button type="button" class="alt" onclick="cancelItem(${i.id})">Cancel listing</button></div>`;
   const urgent = new Date(i.ends_at) - Date.now() < 60000 ? " urgent" : "";
   const status = done
     ? (i.bidder ? `Sold to ${esc(i.bidder_name)}${lead ? " (you won this lot)" : ""}` : "Ended with no bids")
@@ -338,13 +393,14 @@ function dashView() {
 }
 
 function render() {
-  $("app").innerHTML = !user || !profile ? authView() : !mode ? chooseView() : dashView();
+  $("app").innerHTML = recovering ? resetView() : !user || !profile ? authView() : !mode ? chooseView() : dashView();
 }
 
 // ---------- START ----------
+sb.auth.onAuthStateChange(ev => { if (ev === "PASSWORD_RECOVERY") { recovering = true; render(); } });
 (async () => {
   const { data } = await sb.auth.getSession();
-  if (data.session) { user = data.session.user; await refresh(); } else render();
+  if (data.session && !recovering) { user = data.session.user; await refresh(); } else render();
 })();
 
 // Every second update the countdowns; every 5 seconds reload the latest data from Supabase.
